@@ -7,42 +7,36 @@ package io.debezium.connector.spanner;
 
 import java.time.Duration;
 
-import org.junit.jupiter.api.AfterAll;
-import org.junit.jupiter.api.BeforeAll;
-
+import io.debezium.config.Configuration;
 import io.debezium.connector.spanner.util.Connection;
 import io.debezium.connector.spanner.util.Database;
 import io.debezium.connector.spanner.util.EmulatorEnvironment;
 import io.debezium.embedded.AbstractConnectorTest;
-import io.debezium.util.Testing;
 
 public class AbstractSpannerConnectorIT extends AbstractConnectorTest {
     private static final EmulatorEnvironment EMULATOR_ENVIRONMENT = new EmulatorEnvironment();
-    // static {
-    // Testing.Print.enable();
-    // if (!EMULATOR_ENVIRONMENT.isStarted()) {
-    // EMULATOR_ENVIRONMENT.startLocalEmulator();
-    // }
-    // }
     protected static final Database database = Database.TEST_DATABASE;
-    protected static Connection databaseConnection;
+    protected static final Connection databaseConnection = database.getConnection();
     protected static final int WAIT_FOR_CDC = 3 * 1000;
+    protected static final Configuration baseConfig = Configuration.create()
+            .with("gcp.spanner.instance.id", database.getInstanceId())
+            .with("gcp.spanner.project.id", database.getProjectId())
+            .with("gcp.spanner.database.id", database.getDatabaseId())
+            .with("gcp.spanner.emulator.host", Connection.emulatorHost)
+            .build();
 
-    @AfterAll
-    public static void after() throws InterruptedException {
-        System.out.println("after all");
-        EMULATOR_ENVIRONMENT.shutDownLocalEmulator();
-    }
+    // @AfterAll
+    // public static void after() throws InterruptedException {
+    // System.out.println("after all tests");
+    // }
 
-    @BeforeAll
-    public static void before() throws InterruptedException {
-        Testing.Print.enable();
-        System.out.println("before all");
-        if (!EMULATOR_ENVIRONMENT.isStarted()) {
-            EMULATOR_ENVIRONMENT.startLocalEmulator();
-        }
-        databaseConnection = database.getConnection();
-    }
+    // @BeforeAll
+    // public static void before() throws InterruptedException {
+    // Testing.Print.enable();
+    // System.out.println("before all");
+
+    // databaseConnection = database.getConnection();
+    // }
 
     protected static void waitForCDC() {
         try {
@@ -59,5 +53,10 @@ public class AbstractSpannerConnectorIT extends AbstractConnectorTest {
         }
         catch (Exception e) {
         }
+    }
+
+    protected String getTopicName(Configuration config, String tableName) {
+        String debeziumConnectorName = "testing-connector";
+        return debeziumConnectorName + "." + tableName;
     }
 }

@@ -53,13 +53,13 @@ public class EmulatorEnvironment {
 
     public void startLocalEmulator() {
         try {
-            System.out.println("about to download docker tar");
+            // System.out.println("about to download docker tar");
+            // Process p = Runtime.getRuntime()
+            // .exec("curl --output ../emulator.tar https://storage.googleapis.com/cloud-spanner-emulator/change-streams-preview/emulator-for-connector.tar");
+            // printResults(p);
+            System.out.println("about to docker pull");
             Process p = Runtime.getRuntime()
-                    .exec("curl --output ../emulator.tar https://storage.googleapis.com/cloud-spanner-emulator/change-streams-preview/emulator-for-connector.tar");
-            printResults(p);
-            System.out.println("about to docker load");
-            p = Runtime.getRuntime()
-                    .exec("docker load -i ../emulator.tar");
+                    .exec("docker pull gcr.io/cloud-spanner-emulator-test/change-streams/emulator-for-connector:latest");
             printResults(p);
             System.out.println("about to docker run");
             Runtime.getRuntime()

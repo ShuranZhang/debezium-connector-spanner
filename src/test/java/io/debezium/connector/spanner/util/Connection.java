@@ -43,7 +43,7 @@ public class Connection {
     private final String projectId;
     private final String instanceId;
     private final String databaseId;
-    private static final String emulatorHost = "http://localhost:9010";
+    public static final String emulatorHost = "http://localhost:9010";
 
     private DatabaseClient databaseClient;
     private Spanner spanner;

@@ -1,5 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
     <parent>
         <groupId>io.debezium</groupId>
         <artifactId>debezium-parent</artifactId>
@@ -35,6 +37,14 @@
         <docker.tag.name>latest</docker.tag.name>
         <docker.skip.push>true</docker.skip.push>
         <docker.repository.name>quay.io/debezium/kafka-spanner-connector</docker.repository.name>
+
+        <docker.db>gcr.io/cloud-spanner-emulator-test/change-streams/emulator-for-connector</docker.db>
+        <docker.filter>${docker.db},${docker.repository.name}:${docker.tag.name}</docker.filter>
+        <docker.skip>false</docker.skip>
+        <docker.showLogs>true</docker.showLogs>
+        <!-- Apicurion container properties -->
+        <apicurio.port>8080</apicurio.port>
+        <apicurio.init.timeout>60000</apicurio.init.timeout> <!-- 60 seconds -->
     </properties>
 
     <repositories>
@@ -214,7 +224,7 @@
                 <version>${version.debezium}</version>
                 <type>test-jar</type>
                 <scope>test</scope>
-        </dependency>
+            </dependency>
         </dependencies>
     </dependencyManagement>
 
@@ -268,7 +278,7 @@
             <artifactId>slf4j-api</artifactId>
         </dependency>
 
-       <!-- Building -->
+        <!-- Building -->
         <dependency>
             <groupId>io.debezium</groupId>
             <artifactId>debezium-ide-configs</artifactId>
@@ -374,27 +384,6 @@
         </pluginManagement>
         <plugins>
             <plugin>
-                <groupId>org.apache.maven.plugins</groupId>
-                <artifactId>maven-failsafe-plugin</artifactId>
-                <configuration>
-                    <skipTests>false</skipTests>
-                </configuration>
-                <executions>
-                    <execution>
-                        <id>integration-test</id>
-                        <goals>
-                            <goal>integration-test</goal>
-                        </goals>
-                    </execution>
-                    <execution>
-                        <id>verify</id>
-                        <goals>
-                            <goal>verify</goal>
-                        </goals>
-                    </execution>
-                </executions>
-            </plugin>
-            <plugin>
                 <groupId>org.xolstice.maven.plugins</groupId>
                 <artifactId>protobuf-maven-plugin</artifactId>
                 <configuration>
@@ -447,8 +436,145 @@
                     </execution>
                 </executions>
             </plugin>
-
             <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-failsafe-plugin</artifactId>
+                <executions>
+                    <execution>
+                        <id>integration-test</id>
+                        <goals>
+                            <goal>integration-test</goal>
+                        </goals>
+                    </execution>
+                    <execution>
+                        <id>verify</id>
+                        <goals>
+                            <goal>verify</goal>
+                        </goals>
+                    </execution>
+                </executions>
+                <configuration>
+                    <skipTests>${skipITs}</skipTests>
+                    <enableAssertions>true</enableAssertions>
+                </configuration>
+            </plugin>
+            <plugin>
+                <groupId>io.fabric8</groupId>
+                <artifactId>docker-maven-plugin</artifactId>
+                <configuration>
+                    <watchInterval>500</watchInterval>
+                    <logDate>default</logDate>
+                    <verbose>true</verbose>
+                    <imagePullPolicy>IfNotPresent</imagePullPolicy>
+                    <images>
+                        <image>
+                            <name>${docker.db}</name>
+                            <run>
+                                <namingStrategy>none</namingStrategy>
+                                <ports>
+                                    <port>9010:9010</port>
+                                    <port>9020:9020</port>
+                                </ports>
+                                <log>
+                                    <prefix>cloud-spanner-emulator</prefix>
+                                    <enabled>true</enabled>
+                                    <color>yellow</color>
+                                </log>
+                                <!-- <wait>
+                                                <time>10000</time>
+                                                <log>Cloud Spanner Emulator is ready to accept connections.</log>
+                                            </wait> -->
+                            </run>
+                            <external>
+                                <type>properties</type>
+                                <mode>override</mode>
+                            </external>
+                        </image>
+                        <image>
+                            <name>apicurio/apicurio-registry-mem:${version.apicurio}</name>
+                            <run>
+                                <namingStrategy>none</namingStrategy>
+                                <ports>
+                                    <port>${apicurio.port}:8080</port>
+                                </ports>
+                                <log>
+                                    <prefix>apicurio</prefix>
+                                    <enabled>true</enabled>
+                                    <color>blue</color>
+                                </log>
+                                <wait>
+                                    <log>.*apicurio-registry-app.*started in.*</log>
+                                    <time>${apicurio.init.timeout}</time>
+                                </wait>
+                            </run>
+                        </image>
+                    </images>
+                </configuration>
+                <executions>
+                    <execution>
+                        <id>build</id>
+                        <phase>package</phase>
+                        <goals>
+                            <goal>build</goal>
+                        </goals>
+                        <configuration>
+                            <repository>${docker.repository.name}</repository>
+                            <skip>${docker.skip.push}</skip>
+                            <images>
+                                <image>
+                                    <name>${docker.repository.name}:${docker.tag.name}</name>
+                                    <build>
+                                        <contextDir>${project.basedir}</contextDir>
+                                        <dockerFile>${project.basedir}/src/test/docker/Dockerfile</dockerFile>
+                                        <filter>@</filter>
+                                    </build>
+                                </image>
+                            </images>
+                        </configuration>
+                    </execution>
+                    <execution>
+                        <id>local_build</id>
+                        <phase>package</phase>
+                        <goals>
+                            <goal>push</goal>
+                        </goals>
+                        <configuration>
+                            <!-- <repository>${docker.repository.name}</repository> -->
+                            <pushImage>true</pushImage>
+                            <skip>${docker.skip.push}</skip>
+                            <authConfig>
+                                <username>${docker.username}</username>
+                                <password>${docker.password}</password>
+                            </authConfig>
+                            <images>
+                                <image>
+                                    <name>${docker.repository.name}:${docker.tag.name}</name>
+                                    <build>
+                                        <contextDir>${project.basedir}</contextDir>
+                                        <dockerFile>${project.basedir}/src/test/docker/Dockerfile</dockerFile>
+                                        <filter>@</filter>
+                                    </build>
+                                </image>
+                            </images>
+                        </configuration>
+                    </execution>
+                    <execution>
+                        <id>start</id>
+                        <phase>pre-integration-test</phase>
+                        <goals>
+                            <goal>start</goal>
+                        </goals>
+                    </execution>
+                    <execution>
+                        <id>stop</id>
+                        <phase>post-integration-test</phase>
+                        <goals>
+                            <goal>stop</goal>
+                        </goals>
+                    </execution>
+                </executions>
+            </plugin>
+            <!-- <plugin>
                 <groupId>io.fabric8</groupId>
                 <artifactId>docker-maven-plugin</artifactId>
                 <executions>
@@ -475,7 +601,7 @@
                         </image>
                     </images>
                 </configuration>
-            </plugin>
+            </plugin> -->
         </plugins>
         <resources>
             <!-- Apply the properties set in the POM to the resource files -->
@@ -488,6 +614,16 @@
                 </includes>
             </resource>
         </resources>
+        <testResources>
+            <testResource>
+                <directory>src/test/resources</directory>
+                <filtering>true</filtering>
+                <includes>
+                    <include>*</include>
+                    <include>**/*</include>
+                </includes>
+            </testResource>
+        </testResources>
     </build>
 
     <profiles>
@@ -543,6 +679,32 @@
             </properties>
         </profile>
         <profile>
+            <id>apicurio</id>
+            <activation>
+                <activeByDefault>false</activeByDefault>
+                <property>
+                    <name>apicurio</name>
+                </property>
+            </activation>
+            <build>
+                <plugins>
+                    <plugin>
+                        <groupId>org.apache.maven.plugins</groupId>
+                        <artifactId>maven-failsafe-plugin</artifactId>
+                        <configuration>
+                            <systemPropertyVariables>
+                                <use.apicurio>true</use.apicurio>
+                            </systemPropertyVariables>
+                        </configuration>
+                    </plugin>
+                </plugins>
+            </build>
+            <properties>
+                <docker.filter>
+                    ${docker.db},apicurio/apicurio-registry-mem:${version.apicurio},${docker.repository.name}:${docker.tag.name}</docker.filter>
+            </properties>
+        </profile>
+        <profile>
             <id>quick</id>
             <activation>
                 <activeByDefault>false</activeByDefault>
@@ -573,7 +735,7 @@
                             <argLine>${surefireArgLine} -Xmx1024m -noverify</argLine>
                         </configuration>
                     </plugin>
-                    <plugin>
+                    <!-- <plugin>
                         <groupId>org.apache.maven.plugins</groupId>
                         <artifactId>maven-failsafe-plugin</artifactId>
                         <configuration>
@@ -583,31 +745,45 @@
                             <reuseForks>true</reuseForks>
                             <argLine>${surefireArgLine} -Xmx1024m -noverify</argLine>
                         </configuration>
-                    </plugin>
+                    </plugin> -->
                     <plugin>
                         <groupId>org.jacoco</groupId>
                         <artifactId>jacoco-maven-plugin</artifactId>
                         <version>${jacoco.version}</version>
                         <configuration>
                             <excludes>
-                                <exclude>io/debezium/connector/spanner/context/offset/SpannerOffsetContext.class</exclude>
-                                <exclude>io/debezium/connector/spanner/db/model/schema/ColumnType.class</exclude>
-                                <exclude>io/debezium/connector/spanner/db/model/StreamEventMetadata.class</exclude>
-                                <exclude>io/debezium/connector/spanner/db/stream/PartitionEventListener.class</exclude>
-                                <exclude>io/debezium/connector/spanner/db/stream/SpannerChangeStreamService.class</exclude>
+                                <exclude>
+                                    io/debezium/connector/spanner/context/offset/SpannerOffsetContext.class</exclude>
+                                <exclude>
+                                    io/debezium/connector/spanner/db/model/schema/ColumnType.class</exclude>
+                                <exclude>
+                                    io/debezium/connector/spanner/db/model/StreamEventMetadata.class</exclude>
+                                <exclude>
+                                    io/debezium/connector/spanner/db/stream/PartitionEventListener.class</exclude>
+                                <exclude>
+                                    io/debezium/connector/spanner/db/stream/SpannerChangeStreamService.class</exclude>
                                 <exclude>io/debezium/connector/spanner/metrics/SpannerMeter.class</exclude>
-                                <exclude>io/debezium/connector/spanner/metrics/jmx/SpannerMetricsMXBean.class</exclude>
-                                <exclude>io/debezium/connector/spanner/metrics/jmx/SpannerSnapshotChangeEventSourceMetricsStub.class</exclude>
-                                <exclude>io/debezium/connector/spanner/metrics/jmx/SpannerStreamingChangeEventSourceMetrics.class</exclude>
-                                <exclude>io/debezium/connector/spanner/schema/mapper/ColumnTypeSchemaMapper.class</exclude>
-                                <exclude>io/debezium/connector/spanner/schema/KafkaSpannerTableSchemaFactory.class</exclude>
-                                <exclude>io/debezium/connector/spanner/SpannerStreamingChangeEventSource.PartitionEventListener.class</exclude>
+                                <exclude>
+                                    io/debezium/connector/spanner/metrics/jmx/SpannerMetricsMXBean.class</exclude>
+                                <exclude>
+                                    io/debezium/connector/spanner/metrics/jmx/SpannerSnapshotChangeEventSourceMetricsStub.class</exclude>
+                                <exclude>
+                                    io/debezium/connector/spanner/metrics/jmx/SpannerStreamingChangeEventSourceMetrics.class</exclude>
+                                <exclude>
+                                    io/debezium/connector/spanner/schema/mapper/ColumnTypeSchemaMapper.class</exclude>
+                                <exclude>
+                                    io/debezium/connector/spanner/schema/KafkaSpannerTableSchemaFactory.class</exclude>
+                                <exclude>
+                                    io/debezium/connector/spanner/SpannerStreamingChangeEventSource.PartitionEventListener.class</exclude>
                                 <exclude>io/debezium/connector/spanner/SpannerErrorHandler.class</exclude>
                                 <exclude>io/debezium/connector/spanner/SpannerBaseSourceTask.class</exclude>
-                                <exclude>io/debezium/connector/spanner/SpannerSourceInfoStructMaker.class</exclude>
+                                <exclude>
+                                    io/debezium/connector/spanner/SpannerSourceInfoStructMaker.class</exclude>
                                 <exclude>io/debezium/connector/spanner/SpannerPartition.class</exclude>
-                                <exclude>io/debezium/connector/spanner/SpannerChangeEventSourceCoordinator.class</exclude>
-                                <exclude>io/debezium/connector/spanner/CommittingRecordsStreamingChangeEventSource.class</exclude>
+                                <exclude>
+                                    io/debezium/connector/spanner/SpannerChangeEventSourceCoordinator.class</exclude>
+                                <exclude>
+                                    io/debezium/connector/spanner/CommittingRecordsStreamingChangeEventSource.class</exclude>
                                 <exclude>io/debezium/connector/spanner/SpannerConnectorTask.class</exclude>
 
                                 <exclude>io/debezium/connector/spanner/config/validation/**</exclude>
