@@ -123,6 +123,9 @@ public class ChangeStreamRecordMapper {
                 CHILD_PARTITIONS_RECORD_COLUMN).stream()
                 .filter(this::isNonNullChildPartitionsRecord)
                 .map(struct -> toChildPartitionsEvent(partition, struct, resultSetMetadata));
+        System.out.println("Num of data change records: " + dataChangeEvents.count());
+        System.out.println("Num of heartbeat change records: " + heartbeatEvents.count());
+        System.out.println("Num of child partition records: " + childPartitionsEvents.count());
 
         return Stream.concat(
                 Stream.concat(dataChangeEvents, heartbeatEvents), childPartitionsEvents);
@@ -165,7 +168,8 @@ public class ChangeStreamRecordMapper {
         return new HeartbeatEvent(
                 Timestamp.parseTimestamp(heartbeatTimestamp),
                 streamEventMetadataFrom(
-                        partition, Timestamp.parseTimestamp(heartbeatTimestamp), resultSetMetadata));
+                        partition, Timestamp.parseTimestamp(heartbeatTimestamp),
+                        resultSetMetadata));
     }
 
     private ChildPartitionsEvent toChildPartitionsRecordJson(
@@ -184,11 +188,13 @@ public class ChangeStreamRecordMapper {
                         .orElseThrow(IllegalArgumentException::new)
                         .getStringValue(),
                 Optional.ofNullable(valueMap.get(CHILD_PARTITIONS_COLUMN))
-                        .orElseThrow(IllegalArgumentException::new).getListValue().getValuesList().stream()
+                        .orElseThrow(IllegalArgumentException::new).getListValue()
+                        .getValuesList().stream()
                         .map(value -> childPartitionJsonFrom(partition.getToken(), value))
                         .collect(Collectors.toList()),
                 streamEventMetadataFrom(
-                        partition, Timestamp.parseTimestamp(startTimestamp), resultSetMetadata));
+                        partition, Timestamp.parseTimestamp(startTimestamp),
+                        resultSetMetadata));
     }
 
     private ChildPartition childPartitionJsonFrom(String partitionToken, Value row) {
@@ -291,7 +297,8 @@ public class ChangeStreamRecordMapper {
                         .orElseThrow(IllegalArgumentException::new)
                         .getStringValue(),
                 Optional.ofNullable(valueMap.get(COLUMN_TYPES_COLUMN))
-                        .orElseThrow(IllegalArgumentException::new).getListValue().getValuesList().stream()
+                        .orElseThrow(IllegalArgumentException::new).getListValue()
+                        .getValuesList().stream()
                         .map(this::columnTypeJsonFrom)
                         .collect(Collectors.toList()),
                 mods,
@@ -316,7 +323,8 @@ public class ChangeStreamRecordMapper {
                         .orElseThrow(IllegalArgumentException::new)
                         .getBoolValue(),
                 streamEventMetadataFrom(
-                        partition, Timestamp.parseTimestamp(commitTimestamp), resultSetMetadata));
+                        partition, Timestamp.parseTimestamp(commitTimestamp),
+                        resultSetMetadata));
     }
 
     private Column columnTypeJsonFrom(Value row) {
@@ -435,9 +443,12 @@ public class ChangeStreamRecordMapper {
     @VisibleForTesting
     Mod modFrom(int modNumber, Struct struct) {
         final String keys = getJsonString(struct, KEYS_COLUMN);
-        final String oldValues = struct.isNull(OLD_VALUES_COLUMN) ? null : getJsonString(struct, OLD_VALUES_COLUMN);
-        final String newValues = struct.isNull(NEW_VALUES_COLUMN) ? null : getJsonString(struct, NEW_VALUES_COLUMN);
-        return new Mod(modNumber, MapperUtils.getJsonNode(keys), MapperUtils.getJsonNode(oldValues), MapperUtils.getJsonNode(newValues));
+        final String oldValues = struct.isNull(OLD_VALUES_COLUMN) ? null
+                : getJsonString(struct, OLD_VALUES_COLUMN);
+        final String newValues = struct.isNull(NEW_VALUES_COLUMN) ? null
+                : getJsonString(struct, NEW_VALUES_COLUMN);
+        return new Mod(modNumber, MapperUtils.getJsonNode(keys), MapperUtils.getJsonNode(oldValues),
+                MapperUtils.getJsonNode(newValues));
     }
 
     @VisibleForTesting

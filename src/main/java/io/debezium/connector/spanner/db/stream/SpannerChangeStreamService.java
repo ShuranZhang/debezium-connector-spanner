@@ -24,7 +24,8 @@ import io.debezium.connector.spanner.metrics.MetricsEventPublisher;
 import io.debezium.connector.spanner.metrics.event.DelayChangeStreamEventsMetricEvent;
 
 /**
- * This class queries the change stream, sends child partitions to SynchronizedPartitionManager,
+ * This class queries the change stream, sends child partitions to
+ * SynchronizedPartitionManager,
  * and updates the last commit timestamp for each partition.
  */
 public class SpannerChangeStreamService {
@@ -38,7 +39,8 @@ public class SpannerChangeStreamService {
     private final MetricsEventPublisher metricsEventPublisher;
     private final String taskUid;
 
-    public SpannerChangeStreamService(String taskUid, ChangeStreamDao changeStreamDao, ChangeStreamRecordMapper changeStreamRecordMapper,
+    public SpannerChangeStreamService(String taskUid, ChangeStreamDao changeStreamDao,
+                                      ChangeStreamRecordMapper changeStreamRecordMapper,
                                       Duration heartbeatMillis, MetricsEventPublisher metricsEventPublisher) {
         this.changeStreamDao = changeStreamDao;
         this.changeStreamRecordMapper = changeStreamRecordMapper;
@@ -54,12 +56,17 @@ public class SpannerChangeStreamService {
 
         partitionEventListener.onRun(partition);
 
-        LOGGER.info("Task: {}, Streaming {} from {} to {}", taskUid, token, partition.getStartTimestamp(), partition.getEndTimestamp());
+        LOGGER.info("Task: {}, Streaming {} from {} to {}", taskUid, token, partition.getStartTimestamp(),
+                partition.getEndTimestamp());
+        // // System.out.println("Task: "+taskUid, +" Streaming "+token+" from
+        // "+partition.getStartTimestamp(),
+        // partition.getEndTimestamp());
         try (ChangeStreamResultSet resultSet = changeStreamDao.streamQuery(token, partition.getStartTimestamp(),
                 partition.getEndTimestamp(), heartbeatMillis.toMillis())) {
 
             long start = now();
             while (resultSet.next()) {
+                System.out.println("Receied result set: " + resultSet.toString());
                 long delay = now() - start;
 
                 List<ChangeStreamEvent> events = changeStreamRecordMapper.toChangeStreamEvents(
@@ -69,9 +76,11 @@ public class SpannerChangeStreamService {
 
                 if (!events.isEmpty() && (events.get(0) instanceof HeartbeatEvent)) {
                     var heartbeatEvent = (HeartbeatEvent) events.get(0);
-                    long heartbeatLag = System.currentTimeMillis() - heartbeatEvent.getRecordTimestamp().toSqlTimestamp().toInstant().toEpochMilli();
+                    long heartbeatLag = System.currentTimeMillis()
+                            - heartbeatEvent.getRecordTimestamp().toSqlTimestamp().toInstant().toEpochMilli();
                     if (heartbeatLag > 60_000) {
-                        LOGGER.warn("Task: {}, heartbeat has very old timestamp, lag: {}, token: {}, event: {}", taskUid, heartbeatLag,
+                        LOGGER.warn("Task: {}, heartbeat has very old timestamp, lag: {}, token: {}, event: {}",
+                                taskUid, heartbeatLag,
                                 heartbeatEvent.getMetadata().getPartitionToken(),
                                 heartbeatEvent);
                     }
@@ -87,7 +96,8 @@ public class SpannerChangeStreamService {
             }
         }
         catch (InterruptedException ex) {
-            LOGGER.info("task {}, Interrupting streaming partition task with token {}", this.taskUid, partition.getToken());
+            LOGGER.info("task {}, Interrupting streaming partition task with token {}", this.taskUid,
+                    partition.getToken());
             Thread.currentThread().interrupt();
         }
 
@@ -107,9 +117,13 @@ public class SpannerChangeStreamService {
         for (final ChangeStreamEvent changeStreamEvent : events) {
             if (changeStreamEvent instanceof ChildPartitionsEvent) {
                 ChildPartitionsEvent childPartitionsEvent = (ChildPartitionsEvent) changeStreamEvent;
-                LOGGER.info("Task: {}, Received child partition from partition {}:{}", taskUid, partition.getToken(), childPartitionsEvent);
+                LOGGER.info("Task: {}, Received child partition from partition {}:{}", taskUid, partition.getToken(),
+                        childPartitionsEvent);
+                System.out.println("Task " + taskUid + " received child partition from partition "
+                        + partition.getToken() + ": " + childPartitionsEvent);
             }
-            LOGGER.debug("Task: {}, Received record from partition {}: {}", taskUid, partition.getToken(), changeStreamEvent);
+            LOGGER.debug("Task: {}, Received record from partition {}: {}", taskUid, partition.getToken(),
+                    changeStreamEvent);
 
             changeStreamEventConsumer.acceptChangeStreamEvent(changeStreamEvent);
         }

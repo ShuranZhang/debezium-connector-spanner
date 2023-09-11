@@ -117,7 +117,8 @@ public class SpannerConnector extends SourceConnector {
     @VisibleForTesting
     void createInternalTopics(SpannerConnectorConfig config) {
         KafkaAdminClientFactory adminClientFactory = new KafkaAdminClientFactory(config);
-        final KafkaInternalTopicAdminService rebalanceTopicAdminService = new KafkaInternalTopicAdminService(adminClientFactory.getAdminClient(), config);
+        final KafkaInternalTopicAdminService rebalanceTopicAdminService = new KafkaInternalTopicAdminService(
+                adminClientFactory.getAdminClient(), config);
         rebalanceTopicAdminService.createAdjustRebalanceTopic();
         rebalanceTopicAdminService.createVerifySyncTopic();
         adminClientFactory.close();

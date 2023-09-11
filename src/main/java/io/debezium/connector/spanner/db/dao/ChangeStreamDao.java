@@ -75,9 +75,14 @@ public class ChangeStreamDao {
                     .to(heartbeatMillis)
                     .build();
         }
+        System.out.println("Current query is: " + query);
+        System.out.println("Current token is: " + partitionTokenOrNull);
+        System.out.println("start: " + startTimestamp.toString());
+        // System.out.println("end: " + endTimestamp.toString());
         final ResultSet resultSet = databaseClient
                 .singleUse()
-                .executeQuery(statement, Options.priority(rpcPriority), Options.tag("kafka-spanner-connector-job=" + jobName));
+                .executeQuery(statement, Options.priority(rpcPriority),
+                        Options.tag("kafka-spanner-connector-job=" + jobName));
 
         return new ChangeStreamResultSet(resultSet);
     }

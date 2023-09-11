@@ -105,7 +105,8 @@ public class Connection {
     }
 
     public void updateDDL(Iterable<String> updates) throws ExecutionException, InterruptedException {
-        OperationFuture<Void, UpdateDatabaseDdlMetadata> future = spanner.getDatabaseAdminClient().updateDatabaseDdl(instanceId, databaseId, updates, null);
+        OperationFuture<Void, UpdateDatabaseDdlMetadata> future = spanner.getDatabaseAdminClient()
+                .updateDatabaseDdl(instanceId, databaseId, updates, null);
         future.get();
     }
 
@@ -235,13 +236,17 @@ public class Connection {
     public boolean isTableExist(String tableName) {
         Statement statement;
         if (schemaDao.isPostgres()) {
-            statement = Statement.newBuilder("select * from information_schema.tables where table_schema = '' and table_catalog = '' " +
-                    "and table_name = $1")
+            statement = Statement
+                    .newBuilder(
+                            "select * from information_schema.tables where table_schema = '' and table_catalog = '' " +
+                                    "and table_name = $1")
                     .bind("p1").to(tableName).build();
         }
         else {
-            statement = Statement.newBuilder("select * from information_schema.tables where table_schema = '' and table_catalog = '' " +
-                    "and table_name = @tableName")
+            statement = Statement
+                    .newBuilder(
+                            "select * from information_schema.tables where table_schema = '' and table_catalog = '' " +
+                                    "and table_name = @tableName")
                     .bind("tableName").to(tableName).build();
         }
         try (ResultSet resultSet = this.executeSelect(statement)) {
@@ -266,9 +271,11 @@ public class Connection {
     public void createDatabase(String databaseId, Dialect dialect) throws InterruptedException {
         createInstance();
         DatabaseAdminClient dbAdminClient = this.spanner.getDatabaseAdminClient();
-        OperationFuture<com.google.cloud.spanner.Database, CreateDatabaseMetadata> operationFuture = dbAdminClient.createDatabase(
-                dbAdminClient.newDatabaseBuilder(DatabaseId.of(projectId, instanceId, databaseId)).setDialect(dialect).build(),
-                Collections.emptyList());
+        OperationFuture<com.google.cloud.spanner.Database, CreateDatabaseMetadata> operationFuture = dbAdminClient
+                .createDatabase(
+                        dbAdminClient.newDatabaseBuilder(DatabaseId.of(projectId, instanceId, databaseId))
+                                .setDialect(dialect).build(),
+                        Collections.emptyList());
         try {
             operationFuture.get();
         }

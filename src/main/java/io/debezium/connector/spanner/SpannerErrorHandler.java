@@ -42,12 +42,14 @@ public class SpannerErrorHandler extends ErrorHandler {
     @Override
     public void setProducerThrowable(Throwable producerThrowable) {
         boolean first = this.producerThrowable.compareAndSet(null, producerThrowable);
-
+        System.out.println("Exception found: " + producerThrowable.getMessage());
+        producerThrowable.printStackTrace();
         if (first) {
             LOGGER.error("Task failure, taskUid: {}, {}", task.getTaskUid(), getStackTrace(producerThrowable));
         }
         else {
-            LOGGER.warn("Follow-up failure exception, taskUid: {}, {}", task.getTaskUid(), getStackTrace(producerThrowable));
+            LOGGER.warn("Follow-up failure exception, taskUid: {}, {}", task.getTaskUid(),
+                    getStackTrace(producerThrowable));
         }
 
         boolean retriable = isRetriable(producerThrowable);
@@ -56,11 +58,15 @@ public class SpannerErrorHandler extends ErrorHandler {
             if (retriable) {
                 LOGGER.info("Encountered retriable exception {} for task {}", producerThrowable, task.getTaskUid());
                 queue.producerException(
-                        new RetriableException("An exception occurred in the change event producer. This connector will be restarted.", producerThrowable));
+                        new RetriableException(
+                                "An exception occurred in the change event producer. This connector will be restarted.",
+                                producerThrowable));
             }
             else {
                 LOGGER.info("Encountered unretriable exception {} for task {}", producerThrowable, task.getTaskUid());
-                queue.producerException(new ConnectException("An exception occurred in the change event producer. This connector will be stopped.", producerThrowable));
+                queue.producerException(new ConnectException(
+                        "An exception occurred in the change event producer. This connector will be stopped.",
+                        producerThrowable));
             }
         }
     }

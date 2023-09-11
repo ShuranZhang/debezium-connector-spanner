@@ -7,9 +7,14 @@ package io.debezium.connector.spanner.util;
 
 import java.util.UUID;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import com.google.cloud.spanner.Dialect;
 
 public class Database {
+    private static final Logger LOG = LoggerFactory.getLogger(Connection.class);
+
     private static final String projectId = "test-project";
     private static final String instanceId = "test-instance";
     private final String databaseId;

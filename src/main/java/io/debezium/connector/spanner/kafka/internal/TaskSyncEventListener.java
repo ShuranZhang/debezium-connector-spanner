@@ -89,13 +89,16 @@ public class TaskSyncEventListener {
 
             if (endOffset == startOffset) {
                 LOGGER.info("task {}, listen: Sync topic is empty, so initial sync is finished", consumerGroup);
+                System.out
+                        .println("Task " + consumerGroup + "listen: Sync topic is empty, so initial sync is finished");
                 for (BlockingBiConsumer<TaskSyncEvent, SyncEventMetadata> eventConsumer : eventConsumers) {
                     eventConsumer.accept(
                             null, SyncEventMetadata.builder().canInitiateRebalancing(true).build());
                 }
             }
             else {
-                LOGGER.info("Task {}, listen: read last message with start offset {} and end offset {}", consumerGroup, startOffset, endOffset);
+                LOGGER.info("Task {}, listen: read last message with start offset {} and end offset {}", consumerGroup,
+                        startOffset, endOffset);
                 try {
                     LOGGER.info("Task {}, seeking back to end offset {}", consumerGroup, endOffset);
                     consumer.seek(topicPartition, startOffset);
@@ -103,7 +106,8 @@ public class TaskSyncEventListener {
                     seekBackToPreviousEpoch(consumer, topicPartition, beginOffset, startOffset);
                 }
                 catch (org.apache.kafka.common.errors.InterruptException e) {
-                    LOGGER.info("Task {}, caught interrupt exception during reading the sync topic {}", consumerGroup, e);
+                    LOGGER.info("Task {}, caught interrupt exception during reading the sync topic {}", consumerGroup,
+                            e);
                     throw new InterruptedException();
                 }
                 catch (Exception e) {
@@ -148,7 +152,8 @@ public class TaskSyncEventListener {
                             }
                             catch (org.apache.kafka.common.errors.InterruptException
                                     | InterruptedException ex) {
-                                LOGGER.info("TaskSyncEventListener, caught interrupt exception {}, {}", consumerGroup, ex);
+                                LOGGER.info("TaskSyncEventListener, caught interrupt exception {}, {}", consumerGroup,
+                                        ex);
                                 return;
                             }
                             catch (Exception e) {
@@ -164,7 +169,8 @@ public class TaskSyncEventListener {
                 },
                 "SpannerConnector-TaskSyncEventListener");
         thread.setUncaughtExceptionHandler((t, ex) -> {
-            LOGGER.error("Error in SpannerConnector-TaskSyncEventListener, task {}, ex {}", consumerGroup, ex.getStackTrace());
+            LOGGER.error("Error in SpannerConnector-TaskSyncEventListener, task {}, ex {}", consumerGroup,
+                    ex.getStackTrace());
             errorHandler.accept(new RuntimeException(ex));
         });
 
@@ -218,7 +224,8 @@ public class TaskSyncEventListener {
         while (records.isEmpty()) {
             currentOffset = currentOffset - 1;
             if (currOffset - currentOffset >= 100) {
-                throw new DebeziumException("Task " + consumerGroup + "failed to poll last message from the sync topic");
+                throw new DebeziumException(
+                        "Task " + consumerGroup + "failed to poll last message from the sync topic");
             }
             LOGGER.warn("Task {}, listen: fail to poll last message, trying again", consumerGroup);
             consumer.seek(topicPartition, currentOffset);
